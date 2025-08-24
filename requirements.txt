@@ -1,4 +1,3 @@
 streamlit
 pypandoc
-beautifulsoup4
-reportlab
+xhtml2pdf
