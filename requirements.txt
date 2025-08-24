@@ -2,3 +2,4 @@ streamlit
 pypandoc-binary
 fpdf2
 beautifulsoup4
+platypus
