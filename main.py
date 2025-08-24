@@ -4,11 +4,12 @@ from fpdf import FPDF
 from bs4 import BeautifulSoup
 import tempfile
 import os
+import textwrap
 
 st.set_page_config(page_title="EPUB → PDF Converter", page_icon="📚")
 
 st.title("📚 EPUB to PDF Converter")
-st.write("Upload an EPUB file and convert it to a PDF (Unicode supported).")
+st.write("Upload an EPUB file and convert it to a PDF (Unicode + CJK supported).")
 
 uploaded_file = st.file_uploader("Choose an EPUB file", type=["epub"])
 
@@ -33,18 +34,22 @@ if uploaded_file:
         pdf = FPDF()
         pdf.add_page()
 
-        # ✅ Use a Unicode font (DejaVuSans shipped with most Linux distros including Streamlit Cloud)
+        # ✅ Load Unicode font (fallback to Arial if missing)
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         if os.path.exists(font_path):
             pdf.add_font("DejaVu", "", font_path, uni=True)
             pdf.set_font("DejaVu", size=12)
         else:
-            # fallback if font missing (Windows local run)
             pdf.set_font("Arial", size=12)
 
+        max_width = pdf.w - 2*pdf.l_margin  # usable width
+
         for line in text.split("\n"):
-            if line.strip():  # skip empty lines
-                pdf.multi_cell(0, 10, line)
+            if line.strip():
+                # ✅ wrap long lines manually to avoid overflow
+                wrapped_lines = textwrap.wrap(line, width=80)  # adjust width if needed
+                for wl in wrapped_lines:
+                    pdf.multi_cell(max_width, 8, wl, align="L")
 
         pdf.output(pdf_path)
 
