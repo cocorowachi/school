@@ -8,7 +8,7 @@ import os
 st.set_page_config(page_title="EPUB → PDF Converter", page_icon="📚")
 
 st.title("📚 EPUB to PDF Converter")
-st.write("Upload an EPUB file and convert it to a PDF (text-only, no LaTeX/WeasyPrint).")
+st.write("Upload an EPUB file and convert it to a PDF (Unicode supported).")
 
 uploaded_file = st.file_uploader("Choose an EPUB file", type=["epub"])
 
@@ -29,10 +29,18 @@ if uploaded_file:
             soup = BeautifulSoup(f.read(), "html.parser")
         text = soup.get_text(separator="\n")
 
-        st.info("Generating PDF...")
+        st.info("Generating PDF with Unicode font...")
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
+
+        # ✅ Use a Unicode font (DejaVuSans shipped with most Linux distros including Streamlit Cloud)
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        if os.path.exists(font_path):
+            pdf.add_font("DejaVu", "", font_path, uni=True)
+            pdf.set_font("DejaVu", size=12)
+        else:
+            # fallback if font missing (Windows local run)
+            pdf.set_font("Arial", size=12)
 
         for line in text.split("\n"):
             if line.strip():  # skip empty lines
