@@ -1,5 +1,4 @@
 streamlit
-pypandoc-binary
-fpdf2
+pypandoc
 beautifulsoup4
-platypus
+reportlab
