@@ -1,18 +1,13 @@
 import streamlit as st
 import pypandoc
-from bs4 import BeautifulSoup
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 import tempfile
 import os
+from xhtml2pdf import pisa
 
 st.set_page_config(page_title="EPUB → PDF Converter", page_icon="📚")
 
 st.title("📚 EPUB to PDF Converter")
-st.write("Upload an EPUB file and convert it to a PDF (Unicode + Japanese/Chinese/Korean supported).")
+st.write("Upload an EPUB file and convert it to a PDF while keeping formatting, images, and styles.")
 
 uploaded_file = st.file_uploader("Choose an EPUB file", type=["epub"])
 
@@ -26,39 +21,26 @@ if uploaded_file:
 
     try:
         st.info("Converting EPUB → HTML with Pandoc...")
-        pypandoc.convert_file(epub_path, "html", outputfile=html_path)
+        pypandoc.convert_file(epub_path, 'html', outputfile=html_path)
 
-        st.info("Extracting text from HTML...")
         with open(html_path, "r", encoding="utf-8") as f:
-            soup = BeautifulSoup(f.read(), "html.parser")
-        text = soup.get_text(separator="\n")
+            html_content = f.read()
 
-        st.info("Generating PDF with ReportLab (Unicode safe)...")
+        st.info("Rendering HTML → PDF with xhtml2pdf...")
+        with open(pdf_path, "wb") as pdf_file:
+            pisa_status = pisa.CreatePDF(html_content, dest=pdf_file)
 
-        # ✅ Register a Unicode CJK font
-        pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))  # Japanese
-        # For Chinese use "STSong-Light", for Korean "HYSMyeongJo-Medium"
-
-        doc = SimpleDocTemplate(pdf_path, pagesize=A4)
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name="Custom", fontName="HeiseiMin-W3", fontSize=12, leading=16))
-
-        story = []
-        for line in text.split("\n"):
-            if line.strip():
-                story.append(Paragraph(line.strip(), styles["Custom"]))
-                story.append(Spacer(1, 6))
-
-        doc.build(story)
-
-        with open(pdf_path, "rb") as f:
-            st.download_button(
-                label="⬇️ Download PDF",
-                data=f,
-                file_name=os.path.basename(pdf_path),
-                mime="application/pdf"
-            )
-        st.success("✅ Conversion successful!")
+        if pisa_status.err:
+            st.error("❌ PDF generation failed. Some advanced CSS may not be supported.")
+        else:
+            with open(pdf_path, "rb") as f:
+                st.download_button(
+                    label="⬇️ Download Styled PDF",
+                    data=f,
+                    file_name=os.path.basename(pdf_path),
+                    mime="application/pdf"
+                )
+            st.success("✅ Conversion successful!")
 
     except Exception as e:
         st.error(f"❌ Conversion failed: {e}")
