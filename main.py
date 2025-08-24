@@ -1,13 +1,13 @@
 import streamlit as st
 import pypandoc
+from xhtml2pdf import pisa
 import tempfile
 import os
-from xhtml2pdf import pisa
 
 st.set_page_config(page_title="EPUB → PDF Converter", page_icon="📚")
 
 st.title("📚 EPUB to PDF Converter")
-st.write("Upload an EPUB file and convert it to a PDF while keeping formatting, images, and styles.")
+st.write("Upload an EPUB file and convert it to a PDF (with images + formatting).")
 
 uploaded_file = st.file_uploader("Choose an EPUB file", type=["epub"])
 
@@ -21,26 +21,23 @@ if uploaded_file:
 
     try:
         st.info("Converting EPUB → HTML with Pandoc...")
-        pypandoc.convert_file(epub_path, 'html', outputfile=html_path)
+        pypandoc.convert_file(epub_path, "html", outputfile=html_path)
 
+        st.info("Converting HTML → PDF (keeping images)...")
         with open(html_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
-        st.info("Rendering HTML → PDF with xhtml2pdf...")
-        with open(pdf_path, "wb") as pdf_file:
-            pisa_status = pisa.CreatePDF(html_content, dest=pdf_file)
+        with open(pdf_path, "wb") as f:
+            pisa.CreatePDF(html_content, dest=f)
 
-        if pisa_status.err:
-            st.error("❌ PDF generation failed. Some advanced CSS may not be supported.")
-        else:
-            with open(pdf_path, "rb") as f:
-                st.download_button(
-                    label="⬇️ Download Styled PDF",
-                    data=f,
-                    file_name=os.path.basename(pdf_path),
-                    mime="application/pdf"
-                )
-            st.success("✅ Conversion successful!")
+        with open(pdf_path, "rb") as f:
+            st.download_button(
+                label="⬇️ Download PDF",
+                data=f,
+                file_name=os.path.basename(pdf_path),
+                mime="application/pdf"
+            )
+        st.success("✅ Conversion successful (images included)!")
 
     except Exception as e:
         st.error(f"❌ Conversion failed: {e}")
