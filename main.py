@@ -1,15 +1,18 @@
 import streamlit as st
 import pypandoc
-from fpdf import FPDF
 from bs4 import BeautifulSoup
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 import tempfile
 import os
-import textwrap
 
 st.set_page_config(page_title="EPUB → PDF Converter", page_icon="📚")
 
 st.title("📚 EPUB to PDF Converter")
-st.write("Upload an EPUB file and convert it to a PDF (Unicode + CJK supported).")
+st.write("Upload an EPUB file and convert it to a PDF (Unicode + Japanese/Chinese/Korean supported).")
 
 uploaded_file = st.file_uploader("Choose an EPUB file", type=["epub"])
 
@@ -23,35 +26,30 @@ if uploaded_file:
 
     try:
         st.info("Converting EPUB → HTML with Pandoc...")
-        pypandoc.convert_file(epub_path, 'html', outputfile=html_path)
+        pypandoc.convert_file(epub_path, "html", outputfile=html_path)
 
         st.info("Extracting text from HTML...")
         with open(html_path, "r", encoding="utf-8") as f:
             soup = BeautifulSoup(f.read(), "html.parser")
         text = soup.get_text(separator="\n")
 
-        st.info("Generating PDF with Unicode font...")
-        pdf = FPDF()
-        pdf.add_page()
+        st.info("Generating PDF with ReportLab (Unicode safe)...")
 
-        # ✅ Load Unicode font (fallback to Arial if missing)
-        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-        if os.path.exists(font_path):
-            pdf.add_font("DejaVu", "", font_path, uni=True)
-            pdf.set_font("DejaVu", size=12)
-        else:
-            pdf.set_font("Arial", size=12)
+        # ✅ Register a Unicode CJK font
+        pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))  # Japanese
+        # For Chinese use "STSong-Light", for Korean "HYSMyeongJo-Medium"
 
-        max_width = pdf.w - 2*pdf.l_margin  # usable width
+        doc = SimpleDocTemplate(pdf_path, pagesize=A4)
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name="Custom", fontName="HeiseiMin-W3", fontSize=12, leading=16))
 
+        story = []
         for line in text.split("\n"):
             if line.strip():
-                # ✅ wrap long lines manually to avoid overflow
-                wrapped_lines = textwrap.wrap(line, width=80)  # adjust width if needed
-                for wl in wrapped_lines:
-                    pdf.multi_cell(max_width, 8, wl, align="L")
+                story.append(Paragraph(line.strip(), styles["Custom"]))
+                story.append(Spacer(1, 6))
 
-        pdf.output(pdf_path)
+        doc.build(story)
 
         with open(pdf_path, "rb") as f:
             st.download_button(
